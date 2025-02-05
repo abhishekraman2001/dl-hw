@@ -34,7 +34,19 @@ class PyTorchBasics:
 
         Solution length: 13 characters
         """
-        raise NotImplementedError
+        #I learned the code from Video of tensor for code practice.
+        # My Solution Returns every 3rd element completed on 02/02/2025
+        #Lecture 1.6
+        return x[torch.arange(0, x.size(0), 3)]
+
+        # Please find the example :
+        x = torch.tensor([1, 2, 3, 4, 5])
+        result = make_it_pytorch_1(x)
+        #Please find the output of example below
+        print("Input:", x)
+        print("Output (every 3rd element):", result)
+                
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_2(x: torch.Tensor) -> torch.Tensor:
@@ -58,7 +70,55 @@ class PyTorchBasics:
 
         Solution length: 26 characters
         """
-        raise NotImplementedError
+        
+        # Returns the max over the last dimension, shape: (n, m)
+        return x.max(dim=-1).values
+
+    # Example usage
+    x = torch.tensor([
+        [[1, 2, 3], [4, 5, 6]],
+        [[9, 8, 7], [12, 10, 11]]
+    ])
+
+    result = make_it_pytorch_2(x)
+    print("Input shape:", x.shape)
+    print("Input:\n", x)
+    print("Output shape:", result.shape)
+    print("Output:\n", result)
+    #raise NotImplementedError
+    
+    @staticmethod
+    def unique_sorted(x: torch.Tensor) -> torch.Tensor:
+        # Return unique elements of x in sorted order
+        return x.unique(sorted=True)
+
+        # Example 1: 1D input
+        x_1d = torch.tensor([2, 2, 1, 3, 1, 5, 4, 3])
+        result_1d = unique_sorted(x_1d)
+        print("1D Input:", x_1d)
+        print("Unique Sorted:", result_1d)
+        print()
+
+        # Example 2: 2D input
+        x_2d = torch.tensor([[3, 3, 1],
+                        [1, 2, 2]])
+        result_2d = unique_sorted(x_2d)
+        print("2D Input:\n", x_2d)
+        print("Unique Sorted:", result_2d)
+        print()
+
+        # Example 3: 3D input
+        x_3d = torch.tensor([
+            [[1, 5], [2, 2]],
+            [[5, 1], [7, 2]]
+        ])
+        result_3d = unique_sorted(x_3d)
+        print("3D Input:\n", x_3d)
+        print("Unique Sorted:", result_3d)
+
+
+
+
 
     @staticmethod
     def make_it_pytorch_3(x: torch.Tensor) -> torch.Tensor:
@@ -77,7 +137,30 @@ class PyTorchBasics:
 
         Solution length: 22 characters
         """
-        raise NotImplementedError
+       
+        #Tried to understand this link.
+       # https://pytorch.org/docs/stable/generated/torch.unique.html
+        
+        # Return unique elements of x in sorted order
+        return x.unique(sorted=True)
+
+    # Example 1: 1D input
+    x_1d = torch.tensor([2, 2, 1, 3, 1, 5, 4, 3])
+    result_1d = unique_sorted(x_1d)
+    print("Unique Sorted:", result_1d)
+    # Example 2: 2D input
+    x_2d = torch.tensor([[3, 3, 1],
+                        [1, 2, 2]])
+    result_2d = unique_sorted(x_2d)
+    print("Unique Sorted:", result_2d)
+    # Example 3: 3D input
+    x_3d = torch.tensor([
+        [[1, 5], [2, 2]],
+        [[5, 1], [7, 2]]
+    ])
+    result_3d = unique_sorted(x_3d)
+    print("Unique Sorted:", result_3d)
+    #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_4(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -102,7 +185,11 @@ class PyTorchBasics:
 
         Solution length: 27 characters
         """
-        raise NotImplementedError
+        #Please find the solution based on understanding of 
+        # https://pytorch.org/docs/stable/generated/torch.mean.html
+        # https://pytorch.org/docs/stable/generated/torch.sum.html
+        return (y > x.mean()).sum()
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_5(x: torch.Tensor) -> torch.Tensor:
@@ -121,7 +208,9 @@ class PyTorchBasics:
 
         Solution length: 11 characters
         """
-        raise NotImplementedError
+        #from lecture 
+        return x.T
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_6(x: torch.Tensor) -> torch.Tensor:
@@ -139,7 +228,16 @@ class PyTorchBasics:
 
         Solution length: 19 characters
         """
-        raise NotImplementedError
+        # examples Define a 3x3 square tensor
+        x = torch.tensor([[1, 2, 3],
+                  [4, 5, 6],
+                  [7, 8, 9]])
+        # Extract diagonal elements
+        diagonal_elements = x.diagonal()
+
+        print(diagonal_elements)        
+        return x.diagonal()
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_7(x: torch.Tensor) -> torch.Tensor:
@@ -157,7 +255,9 @@ class PyTorchBasics:
 
         Solution length: 27 characters
         """
-        raise NotImplementedError
+        
+        return x.flip(1).diagonal()
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_8(x: torch.Tensor) -> torch.Tensor:
@@ -177,7 +277,9 @@ class PyTorchBasics:
 
         Solution length: 22 characters
         """
-        raise NotImplementedError
+        #https://pytorch.org/docs/stable/generated/torch.sum.html
+        return x.cumsum(0)
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_9(x: torch.Tensor) -> torch.Tensor:
@@ -202,7 +304,8 @@ class PyTorchBasics:
 
         Solution length: 36 characters
         """
-        raise NotImplementedError
+        return x.cumsum(0).cumsum(1)
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_10(x: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
@@ -225,7 +328,8 @@ class PyTorchBasics:
 
         Solution length: 49 characters
         """
-        raise NotImplementedError
+        return torch.where(x < c, torch.tensor(0.0), x)
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_11(x: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
@@ -249,7 +353,8 @@ class PyTorchBasics:
 
         Solution length: 30 characters
         """
-        raise NotImplementedError
+        return (x < c).nonzero(as_tuple=False).T
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_12(x: torch.Tensor, m: torch.BoolTensor) -> torch.Tensor:
@@ -269,7 +374,8 @@ class PyTorchBasics:
 
         Solution length: 11 characters
         """
-        raise NotImplementedError
+        return x[m]
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_extra_1(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -293,7 +399,8 @@ class PyTorchBasics:
 
         Solution length: 36 characters
         """
-        raise NotImplementedError
+        return torch.diff(torch.cat((x, y)))
+        #raise NotImplementedError
 
     @staticmethod
     def make_it_pytorch_extra_2(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -314,4 +421,5 @@ class PyTorchBasics:
 
         Solution length: 64 characters
         """
-        raise NotImplementedError
+        return ((x.unsqueeze(1) - y).abs() < 1e-3).any(1).sum()
+        #raise NotImplementedError

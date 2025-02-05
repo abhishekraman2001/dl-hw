@@ -126,7 +126,7 @@ The point distributions will be the same, but your final grade may vary slightly
 
 Create a submission bundle using:
 ```bash
-python3 bundle.py homework [YOUR UT ID]
+python3 bundle.py homework_akr3222
 ```
 
 Please double-check that your zip file was properly created by grading it again.
@@ -158,7 +158,7 @@ Conda allows the creation of isolated environments, allowing you to specify whic
 
 To set up the environment for this class,
 ```bash
-conda create --name deeplearning python=3.11 -y
+conda create --name deeplearning python=3.12.4 -y
 conda activate deeplearning
 ```
 
