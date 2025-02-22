@@ -13,6 +13,11 @@ import torch.nn as nn
 
 
 class ClassificationLoss(nn.Module):
+    def __init__(self):
+        super(ClassificationLoss, self).__init__()
+        # Using CrossEntropyLoss for multi-class classification
+        self.loss_fn = nn.CrossEntropyLoss()
+        
     def forward(self, logits: torch.Tensor, target: torch.LongTensor) -> torch.Tensor:
         """
         Multi-class classification loss
@@ -25,7 +30,8 @@ class ClassificationLoss(nn.Module):
         Returns:
             tensor, scalar loss
         """
-        raise NotImplementedError("ClassificationLoss.forward() is not implemented")
+        return self.loss_fn(logits, target)
+        #raise NotImplementedError("ClassificationLoss.forward() is not implemented")
 
 
 class LinearClassifier(nn.Module):
@@ -43,7 +49,12 @@ class LinearClassifier(nn.Module):
         """
         super().__init__()
 
-        raise NotImplementedError("LinearClassifier.__init__() is not implemented")
+        # Flatten layer to reshape image (b, 3, H, W) -> (b, 3*h*w)
+        self.flatten = nn.Flatten()
+
+        # Linear layer to map input to num_classes
+        self.fc = nn.Linear(3 * h * w, num_classes)
+        #raise NotImplementedError("LinearClassifier.__init__() is not implemented")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -53,7 +64,14 @@ class LinearClassifier(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        raise NotImplementedError("LinearClassifier.forward() is not implemented")
+        # Flatten input tensor
+        x = self.flatten(x)
+
+        # Forward pass through linear layer
+        logits = self.fc(x)
+
+        return logits
+        #raise NotImplementedError("LinearClassifier.forward() is not implemented")
 
 
 class MLPClassifier(nn.Module):
@@ -62,6 +80,7 @@ class MLPClassifier(nn.Module):
         h: int = 64,
         w: int = 64,
         num_classes: int = 6,
+        hidden_dim: int = 128
     ):
         """
         An MLP with a single hidden layer
@@ -70,10 +89,21 @@ class MLPClassifier(nn.Module):
             h: int, height of the input image
             w: int, width of the input image
             num_classes: int, number of classes
+            hidden_dim: int, number of neurons in the hidden layer
         """
         super().__init__()
 
-        raise NotImplementedError("MLPClassifier.__init__() is not implemented")
+        # Flatten layer to reshape input tensor
+        self.flatten = nn.Flatten()
+
+        # Fully connected layer from input to hidden layer
+        self.fc1 = nn.Linear(3 * h * w, hidden_dim)
+
+        # Activation function (ReLU)
+        self.relu = nn.ReLU()
+
+        # Fully connected layer from hidden layer to output layer
+        self.fc2 = nn.Linear(hidden_dim, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -83,15 +113,27 @@ class MLPClassifier(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        raise NotImplementedError("MLPClassifier.forward() is not implemented")
+        # Flatten input
+        x = self.flatten(x)
 
+        # Forward pass: Input -> Hidden layer -> ReLU
+        x = self.fc1(x)
+        x = self.relu(x)
 
+        # Forward pass: Hidden layer -> Output layer
+        logits = self.fc2(x)
+
+        return logits
+        #raise NotImplementedError("LinearClassifier.forward() is not implemented")
+        
 class MLPClassifierDeep(nn.Module):
     def __init__(
         self,
         h: int = 64,
         w: int = 64,
         num_classes: int = 6,
+        hidden_dim: int = 128,
+        num_layers: int = 3
     ):
         """
         An MLP with multiple hidden layers
@@ -99,15 +141,28 @@ class MLPClassifierDeep(nn.Module):
         Args:
             h: int, height of image
             w: int, width of image
-            num_classes: int
-
-        Hint - you can add more arguments to the constructor such as:
-            hidden_dim: int, size of hidden layers
+            num_classes: int, number of output classes
+            hidden_dim: int, number of neurons in each hidden layer
             num_layers: int, number of hidden layers
         """
         super().__init__()
 
-        raise NotImplementedError("MLPClassifierDeep.__init__() is not implemented")
+        # Flatten layer to reshape input tensor
+        self.flatten = nn.Flatten()
+
+        # Input layer
+        layers = [nn.Linear(3 * h * w, hidden_dim), nn.ReLU()]
+
+        # Hidden layers
+        for _ in range(num_layers - 1):
+            layers.append(nn.Linear(hidden_dim, hidden_dim))
+            layers.append(nn.ReLU())
+
+        # Output layer
+        layers.append(nn.Linear(hidden_dim, num_classes))
+
+        # Combine layers into a sequential model
+        self.model = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -117,6 +172,13 @@ class MLPClassifierDeep(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
+        # Flatten input
+        x = self.flatten(x)
+
+        # Forward pass through all layers
+        logits = self.model(x)
+
+        return logits
         raise NotImplementedError("MLPClassifierDeep.forward() is not implemented")
 
 
@@ -126,20 +188,35 @@ class MLPClassifierDeepResidual(nn.Module):
         h: int = 64,
         w: int = 64,
         num_classes: int = 6,
+        hidden_dim: int = 128,
+        num_layers: int = 3
     ):
         """
+        An MLP with multiple hidden layers and residual connections.
+
         Args:
             h: int, height of image
             w: int, width of image
-            num_classes: int
-
-        Hint - you can add more arguments to the constructor such as:
-            hidden_dim: int, size of hidden layers
+            num_classes: int, number of output classes
+            hidden_dim: int, number of neurons in each hidden layer
             num_layers: int, number of hidden layers
         """
         super().__init__()
 
-        raise NotImplementedError("MLPClassifierDeepResidual.__init__() is not implemented")
+        # Flatten layer to reshape input tensor
+        self.flatten = nn.Flatten()
+
+        # Input layer
+        self.input_layer = nn.Linear(3 * h * w, hidden_dim)
+
+        # Hidden layers with residual connections
+        self.hidden_layers = nn.ModuleList([
+            nn.Linear(hidden_dim, hidden_dim) for _ in range(num_layers - 1)
+        ])
+        self.relu = nn.ReLU()
+
+        # Output layer
+        self.output_layer = nn.Linear(hidden_dim, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -149,7 +226,25 @@ class MLPClassifierDeepResidual(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        raise NotImplementedError("MLPClassifierDeepResidual.forward() is not implemented")
+        # Flatten input
+        x = self.flatten(x)
+
+        # Input layer
+        x = self.input_layer(x)
+        x = self.relu(x)
+
+        # Hidden layers with residual connections
+        for layer in self.hidden_layers:
+            residual = x  # Store input for residual connection
+            x = layer(x)
+            x = self.relu(x)
+            x += residual  # Add residual connection
+
+        # Output layer
+        logits = self.output_layer(x)
+
+        return logits
+        #raise NotImplementedError("MLPClassifierDeepResidual.forward() is not implemented")
 
 
 model_factory = {
@@ -163,13 +258,19 @@ model_factory = {
 def calculate_model_size_mb(model: torch.nn.Module) -> float:
     """
     Args:
-        model: torch.nn.Module
+        model: torch.nn.Module - The PyTorch model whose size is to be calculated.
 
     Returns:
-        float, size in megabytes
+        float - Size of the model in megabytes (MB).
     """
-    return sum(p.numel() for p in model.parameters()) * 4 / 1024 / 1024
+    # Count the total number of parameters (elements) in the model
+    total_params = sum(p.numel() for p in model.parameters())
 
+    # Each parameter typically takes 4 bytes (32-bit float)
+    # Convert total bytes to megabytes by dividing by 1024 twice
+    size_in_mb = total_params * 4 / 1024 / 1024
+
+    return size_in_mb
 
 def save_model(model):
     """
