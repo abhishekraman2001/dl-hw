@@ -8,6 +8,7 @@ import torch.utils.tensorboard as tb
 
 from .models import ClassificationLoss, load_model, save_model
 from .utils import load_data
+#from homework.models import ClassificationLoss, load_model, save_model
 
 
 def train(
@@ -62,7 +63,7 @@ def train(
             img, label = img.to(device), label.to(device)
 
             # TODO: implement training step
-            raise NotImplementedError("Training step not implemented")
+            #raise NotImplementedError("Training step not implemented")
 
             global_step += 1
 
@@ -74,13 +75,13 @@ def train(
                 img, label = img.to(device), label.to(device)
 
                 # TODO: compute validation accuracy
-                raise NotImplementedError("Validation accuracy not implemented")
+                #raise NotImplementedError("Validation accuracy not implemented")
 
         # log average train and val accuracy to tensorboard
         epoch_train_acc = torch.as_tensor(metrics["train_acc"]).mean()
         epoch_val_acc = torch.as_tensor(metrics["val_acc"]).mean()
 
-        raise NotImplementedError("Logging not implemented")
+        #raise NotImplementedError("Logging not implemented")
 
         # print on first, last, every 10th epoch
         if epoch == 0 or epoch == num_epoch - 1 or (epoch + 1) % 10 == 0:

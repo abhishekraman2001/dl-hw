@@ -72,24 +72,7 @@ class LinearClassifier(nn.Module):
 
         return logits
         #raise NotImplementedError("LinearClassifier.forward() is not implemented")
-    if __name__ == "__main__":
-        # Example usage:
-        batch_size = 4
-        h, w = 64, 64
-        num_classes = 6
     
-    # Create dummy input tensor simulating a batch of images
-        dummy_input = torch.randn(batch_size, 3, h, w)
-    
-    # Initialize the model
-        model = LinearClassifier(h, w, num_classes)
-    
-    # Perform a forward pass
-        logits = model(dummy_input)
-    
-        print("Input shape:", dummy_input.shape)   # Expected: (4, 3, 64, 64)
-        print("Output logits shape:", logits.shape)  # Expected: (4, 6)
-
 
 class MLPClassifier(nn.Module):
     def __init__(
