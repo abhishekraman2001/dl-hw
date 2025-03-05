@@ -232,12 +232,16 @@ def load_assignment(logger, assignment_path: str, pre_import_fn=None):
     from shutil import rmtree
 
     assignment_path = Path(assignment_path)
+    print(assignment_path)
 
     if assignment_path.is_dir():
         module_path = assignment_path
         module_dir = module_path.parent
         module_name = module_path.stem
-
+        print(module_path)
+        print(module_dir)
+        print(module_name)
+        
         sys.path.insert(0, str(module_dir))
 
         return importlib.import_module(module_path.stem)
@@ -263,6 +267,7 @@ def load_assignment(logger, assignment_path: str, pre_import_fn=None):
         pre_import_fn()
 
     try:
+        print(module_name)
         return importlib.import_module(module_name)
     except ModuleNotFoundError as e:
         logger.error(f'Import error "{e!s}"')

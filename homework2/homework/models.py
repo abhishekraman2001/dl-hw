@@ -238,7 +238,9 @@ class MLPClassifierDeepResidual(nn.Module):
             residual = x  # Store input for residual connection
             x = layer(x)
             x = self.relu(x)
-            x += residual  # Add residual connection
+            x = x + residual    # Add residual connection
+
+            #x += residual  
 
         # Output layer
         logits = self.output_layer(x)
