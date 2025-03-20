@@ -1,4 +1,4 @@
-from . import tests  # noqa
+from .import tests  # noqa
 
 try:
     # For test grading only, don't worry about it being missing

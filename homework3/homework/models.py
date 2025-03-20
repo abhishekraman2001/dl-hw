@@ -9,23 +9,34 @@ INPUT_STD = [0.2064, 0.1944, 0.2252]
 
 
 class Classifier(nn.Module):
-    def __init__(
-        self,
-        in_channels: int = 3,
-        num_classes: int = 6,
-    ):
-        """
-        A convolutional network for image classification.
-
-        Args:
-            in_channels: int, number of input channels
-            num_classes: int
-        """
+    def __init__(self, in_channels: int = 3, num_classes: int = 6):
         super().__init__()
 
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN))
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
 
+        self.model = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # Output: (B, 32, 32, 32)
+
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # Output: (B, 64, 16, 16)
+
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # Output: (B, 128, 8, 8)
+
+            nn.Flatten(),
+            nn.Linear(128 * 8 * 8, 256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, num_classes)
+        )
         # TODO: implement
         pass
 
@@ -41,8 +52,8 @@ class Classifier(nn.Module):
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
         # TODO: replace with actual forward pass
-        logits = torch.randn(x.size(0), 6)
-
+        #logits = torch.randn(x.size(0), 6)
+        logits = self.model(z)
         return logits
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
@@ -61,23 +72,43 @@ class Classifier(nn.Module):
 
 
 class Detector(torch.nn.Module):
-    def __init__(
-        self,
-        in_channels: int = 3,
-        num_classes: int = 3,
-    ):
-        """
-        A single model that performs segmentation and depth regression
-
-        Args:
-            in_channels: int, number of input channels
-            num_classes: int
-        """
+    def __init__(self, in_channels: int = 3, num_classes: int = 3):
         super().__init__()
-
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN))
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
 
+        # Down blocks
+        self.down1 = nn.Sequential(
+            nn.Conv2d(in_channels, 16, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU()
+        )
+        self.down2 = nn.Sequential(
+            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU()
+        )
+
+        # Up blocks
+        self.up1 = nn.Sequential(
+            nn.ConvTranspose2d(32, 16, kernel_size=2, stride=2),
+            nn.BatchNorm2d(16),
+            nn.ReLU()
+        )
+        self.up2 = nn.Sequential(
+            nn.ConvTranspose2d(16, 16, kernel_size=2, stride=2),
+            nn.BatchNorm2d(16),
+            nn.ReLU()
+        )
+
+        # Segmentation head
+        self.seg_head = nn.Conv2d(16, num_classes, kernel_size=1)
+
+        # Depth head
+        self.depth_head = nn.Sequential(
+            nn.Conv2d(16, 1, kernel_size=1),
+            nn.Sigmoid()  # to scale between 0 and 1
+        )
         # TODO: implement
         pass
 
@@ -97,11 +128,16 @@ class Detector(torch.nn.Module):
         # optional: normalizes the input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        # TODO: replace with actual forward pass
-        logits = torch.randn(x.size(0), 3, x.size(2), x.size(3))
-        raw_depth = torch.rand(x.size(0), x.size(2), x.size(3))
+        d1 = self.down1(z)  # (B, 16, H/2, W/2)
+        d2 = self.down2(d1) # (B, 32, H/4, W/4)
 
-        return logits, raw_depth
+        u1 = self.up1(d2)   # (B, 16, H/2, W/2)
+        u2 = self.up2(u1 + d1)  # Skip connection
+
+        logits = self.seg_head(u2)
+        depth = self.depth_head(u2).squeeze(1)  # Output (B, H, W)
+
+        return logits, depth
 
     def predict(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
