@@ -2,14 +2,25 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 HOMEWORK_DIR = Path(__file__).resolve().parent
 INPUT_MEAN = [0.2788, 0.2657, 0.2629]
 INPUT_STD = [0.2064, 0.1944, 0.2252]
 
 
 class Classifier(nn.Module):
-    def __init__(self, in_channels: int = 3, num_classes: int = 6):
+    def __init__(
+        self,
+        in_channels: int = 3,
+        num_classes: int = 6,
+    ):
+        """
+        A convolutional network for image classification.
+
+        Args:
+            in_channels: int, number of input channels
+            num_classes: int
+        """
         super().__init__()
 
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN))
@@ -19,148 +30,142 @@ class Classifier(nn.Module):
             nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d(2),  # Output: (B, 32, 32, 32)
+            nn.MaxPool2d(2),
 
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2),  # Output: (B, 64, 16, 16)
+            nn.MaxPool2d(2),
 
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.MaxPool2d(2),  # Output: (B, 128, 8, 8)
+            nn.MaxPool2d(2),
 
-            nn.Flatten(),
+
+            nn.Dropout(p=0.5),
+        )
+
+        self.fc = nn.Sequential(
             nn.Linear(128 * 8 * 8, 256),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, num_classes)
+            nn.Dropout(p=0.5),
+            nn.Linear(256, num_classes),
         )
-        # TODO: implement
-        pass
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Args:
-            x: tensor (b, 3, h, w) image
-
-        Returns:
-            tensor (b, num_classes) logits
+        Standard forward pass for classification.
+        Returns (b, num_classes) logits.
         """
-        # optional: normalizes the input
+        # optional: normalizes input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        # TODO: replace with actual forward pass
-        #logits = torch.randn(x.size(0), 6)
-        logits = self.model(z)
+        # pass through conv layers
+        z = self.model(z)       # e.g. shape (b, 128, 8, 8)
+        z = z.view(z.size(0), -1)  # flatten to (b, 128*8*8)
+        logits = self.fc(z)        # (b, 6)
+
         return logits
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Used for inference, returns class labels
-        This is what the AccuracyMetric uses as input (this is what the grader will use!).
+        Used for inference; returns class labels.
+        This is what the AccuracyMetric uses as input (grader will use).
         You should not have to modify this function.
-
-        Args:
-            x (torch.FloatTensor): image with shape (b, 3, h, w) and vals in [0, 1]
-
-        Returns:
-            pred (torch.LongTensor): class labels {0, 1, ..., 5} with shape (b, h, w)
         """
         return self(x).argmax(dim=1)
 
 
-class Detector(torch.nn.Module):
-    def __init__(self, in_channels: int = 3, num_classes: int = 3):
+class Detector(nn.Module):
+    def __init__(self, in_channels=3, num_classes=3):
         super().__init__()
-        self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN))
-        self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
 
-        # Down blocks
-        self.down1 = nn.Sequential(
-            nn.Conv2d(in_channels, 16, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU()
-        )
-        self.down2 = nn.Sequential(
-            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU()
-        )
+        # For optional normalization if needed
+        self.register_buffer("input_mean", torch.tensor([0.2788, 0.2657, 0.2629]))
+        self.register_buffer("input_std", torch.tensor([0.2064, 0.1944, 0.2252]))
 
-        # Up blocks
-        self.up1 = nn.Sequential(
-            nn.ConvTranspose2d(32, 16, kernel_size=2, stride=2),
-            nn.BatchNorm2d(16),
-            nn.ReLU()
-        )
-        self.up2 = nn.Sequential(
-            nn.ConvTranspose2d(16, 16, kernel_size=2, stride=2),
-            nn.BatchNorm2d(16),
-            nn.ReLU()
-        )
+        # ---------- ENCODER ----------
+        self.down1 = nn.Conv2d(in_channels, 32, kernel_size=3, stride=2, padding=1)
+        self.bn1   = nn.BatchNorm2d(32)
 
-        # Segmentation head
-        self.seg_head = nn.Conv2d(16, num_classes, kernel_size=1)
+        self.down2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
+        self.bn2   = nn.BatchNorm2d(64)
 
-        # Depth head
+        self.down3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
+        self.bn3   = nn.BatchNorm2d(128)
+
+        # bottleneck (no further down-sampling)
+        self.bottleneck = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.bn_bottleneck = nn.BatchNorm2d(256)
+
+        # ---------- DECODER ----------
+        # up3: from (B,256,h/8,w/8) -> (B,128,h/4,w/4) then cat with d2
+        self.up3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
+        self.up3_conv = nn.Conv2d(128 + 64, 128, kernel_size=3, padding=1)
+        self.up3_bn = nn.BatchNorm2d(128)
+
+        # up2: from (B,128,h/4,w/4) -> (B,64,h/2,w/2) then cat with d1
+        self.up2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
+        self.up2_conv = nn.Conv2d(64 + 32, 64, kernel_size=3, padding=1)
+        self.up2_bn = nn.BatchNorm2d(64)
+
+        # up1: from (B,64,h/2,w/2) -> (B,32,h,w) -> cat with nothing?
+        self.up1 = nn.ConvTranspose2d(64, 32, kernel_size=2, stride=2)
+        self.up1_conv = nn.Conv2d(32, 32, kernel_size=3, padding=1)
+        self.up1_bn = nn.BatchNorm2d(32)
+
+        # ---------- HEADS ----------
+        self.seg_head   = nn.Conv2d(32, num_classes, kernel_size=1)
         self.depth_head = nn.Sequential(
-            nn.Conv2d(16, 1, kernel_size=1),
-            nn.Sigmoid()  # to scale between 0 and 1
+            nn.Conv2d(32, 1, kernel_size=1),
+            nn.Sigmoid(),
         )
-        # TODO: implement
-        pass
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x):
+        # optional: input normalization
+        # comment out if you already do transforms.Normalize in your dataset
+        x = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
+
+        # -------- Encoder --------
+        d1 = F.relu(self.bn1(self.down1(x)))   # (B,32,h/2,w/2)
+        d2 = F.relu(self.bn2(self.down2(d1)))  # (B,64,h/4,w/4)
+        d3 = F.relu(self.bn3(self.down3(d2)))  # (B,128,h/8,w/8)
+
+        bn = F.relu(self.bn_bottleneck(self.bottleneck(d3)))  # (B,256,h/8,w/8)
+
+        # -------- Decoder --------
+        # up3 -> cat with d2
+        u3  = F.relu(self.up3(bn))                   # (B,128,h/4,w/4)
+        cat3 = torch.cat([u3, d2], dim=1)            # (B,128+64=192,h/4,w/4)
+        dec3 = F.relu(self.up3_bn(self.up3_conv(cat3)))  # (B,128,h/4,w/4)
+
+        # up2 -> cat with d1
+        u2  = F.relu(self.up2(dec3))                 # (B,64,h/2,w/2)
+        cat2 = torch.cat([u2, d1], dim=1)            # (B,64+32=96,h/2,w/2)
+        dec2 = F.relu(self.up2_bn(self.up2_conv(cat2)))  # (B,64,h/2,w/2)
+
+        # up1 -> no skip (or if you had a d0 above, you'd cat it here)
+        u1  = F.relu(self.up1(dec2))                 # (B,32,h,w)
+        dec1 = F.relu(self.up1_bn(self.up1_conv(u1)))# (B,32,h,w)
+
+        # -------- Heads --------
+        logits = self.seg_head(dec1)                 # (B,num_classes,h,w)
+        raw_depth = self.depth_head(dec1).squeeze(1) # (B,h,w)
+
+        return logits, raw_depth
+
+    @torch.no_grad()
+    def predict(self, x):
         """
-        Used in training, takes an image and returns raw logits and raw depth.
-        This is what the loss functions use as input.
-
-        Args:
-            x (torch.FloatTensor): image with shape (b, 3, h, w) and vals in [0, 1]
-
-        Returns:
-            tuple of (torch.FloatTensor, torch.FloatTensor):
-                - logits (b, num_classes, h, w)
-                - depth (b, h, w)
-        """
-        # optional: normalizes the input
-        z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
-
-        d1 = self.down1(z)  # (B, 16, H/2, W/2)
-        d2 = self.down2(d1) # (B, 32, H/4, W/4)
-
-        u1 = self.up1(d2)   # (B, 16, H/2, W/2)
-        u2 = self.up2(u1 + d1)  # Skip connection
-
-        logits = self.seg_head(u2)
-        depth = self.depth_head(u2).squeeze(1)  # Output (B, H, W)
-
-        return logits, depth
-
-    def predict(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Used for inference, takes an image and returns class labels and normalized depth.
-        This is what the metrics use as input (this is what the grader will use!).
-
-        Args:
-            x (torch.FloatTensor): image with shape (b, 3, h, w) and vals in [0, 1]
-
-        Returns:
-            tuple of (torch.LongTensor, torch.FloatTensor):
-                - pred: class labels {0, 1, 2} with shape (b, h, w)
-                - depth: normalized depth [0, 1] with shape (b, h, w)
+        Inference function: returns seg classes + 0..1 depth
         """
         logits, raw_depth = self(x)
-        pred = logits.argmax(dim=1)
-
-        # Optional additional post-processing for depth only if needed
-        depth = raw_depth
-
-        return pred, depth
+        seg_pred = logits.argmax(dim=1)
+        return seg_pred, raw_depth
 
 
+# For grading + saving/loading:
 MODEL_FACTORY = {
     "classifier": Classifier,
     "detector": Detector,
@@ -171,7 +176,7 @@ def load_model(
     model_name: str,
     with_weights: bool = False,
     **model_kwargs,
-) -> torch.nn.Module:
+) -> nn.Module:
     """
     Called by the grader to load a pre-trained model by name
     """
@@ -188,25 +193,21 @@ def load_model(
                 f"Failed to load {model_path.name}, make sure the default model arguments are set correctly"
             ) from e
 
-    # limit model sizes since they will be zipped and submitted
     model_size_mb = calculate_model_size_mb(m)
-
     if model_size_mb > 20:
         raise AssertionError(f"{model_name} is too large: {model_size_mb:.2f} MB")
 
     return m
 
 
-def save_model(model: torch.nn.Module) -> str:
+def save_model(model: nn.Module) -> str:
     """
     Use this function to save your model in train.py
     """
     model_name = None
-
     for n, m in MODEL_FACTORY.items():
         if type(model) is m:
             model_name = n
-
     if model_name is None:
         raise ValueError(f"Model type '{str(type(model))}' not supported")
 
@@ -216,35 +217,41 @@ def save_model(model: torch.nn.Module) -> str:
     return output_path
 
 
-def calculate_model_size_mb(model: torch.nn.Module) -> float:
+def calculate_model_size_mb(model: nn.Module) -> float:
     """
-    Args:
-        model: torch.nn.Module
-
-    Returns:
-        float, size in megabytes
+    Returns size in MB
     """
     return sum(p.numel() for p in model.parameters()) * 4 / 1024 / 1024
 
 
 def debug_model(batch_size: int = 1):
     """
-    Test your model implementation
-
-    Feel free to add additional checks to this function -
-    this function is NOT used for grading
+    Quick test
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     sample_batch = torch.rand(batch_size, 3, 64, 64).to(device)
 
-    print(f"Input shape: {sample_batch.shape}")
 
     model = load_model("classifier", in_channels=3, num_classes=6).to(device)
     output = model(sample_batch)
 
-    # should output logits (b, num_classes)
-    print(f"Output shape: {output.shape}")
 
+def iou_loss(logits: torch.Tensor, targets: torch.Tensor, eps: float = 1e-7):
+    """
+    logits: shape (B, num_classes, H, W)
+    targets: shape (B, H, W) in {0..num_classes-1}
+    """
+    probs = F.softmax(logits, dim=1)
+    num_classes = logits.shape[1]
 
+    # One-hot encode targets: (B,H,W) -> (B,H,W,C) -> (B,C,H,W)
+    targets_oh = F.one_hot(targets, num_classes=num_classes).permute(0,3,1,2).float()
+
+    intersection = (probs * targets_oh).sum(dim=(2,3))
+    union        = (probs + targets_oh).sum(dim=(2,3)) - intersection
+    iou_per_class = (intersection + eps) / (union + eps)
+    # average across classes and batch
+    iou_val = iou_per_class.mean()
+    return 1.0 - iou_val 
 if __name__ == "__main__":
     debug_model()

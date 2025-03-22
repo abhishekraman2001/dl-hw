@@ -38,9 +38,16 @@ class SuperTuxDataset(Dataset):
             # construct your custom augmentation
             xform = transforms.Compose(
                 [
-                    # TODO: fix
-                    # transforms.ColorJitter(0.9, 0.9, 0.9, 0.1),
-                    transforms.RandomHorizontalFlip(),
+                    transforms.Resize((72, 72)),
+                    transforms.RandomCrop((64, 64)),             # random crop
+                    transforms.RandomHorizontalFlip(p=0.5),       # flip
+                    transforms.RandomApply([
+                        transforms.ColorJitter(brightness=0.4, 
+                                            contrast=0.4, 
+                                            saturation=0.4, 
+                                            hue=0.1)
+                    ], p=0.8),
+                    transforms.RandomRotation(15),               # rotate ±15°
                     transforms.ToTensor(),
                 ]
             )
